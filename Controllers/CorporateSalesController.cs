@@ -37,7 +37,8 @@ namespace ADDPerformance.Controllers
         // GET: CorporateSales
 
        
-
+[HttpPost("upload")]
+[Consumes("multipart/form-data")]
         public async Task<IActionResult> Upload()
         {
             // Retrieve uploaded files and form fields
@@ -179,6 +180,7 @@ namespace ADDPerformance.Controllers
         }
 
         // GET: CorporateSales/Details/5
+        [HttpGet("{id}")]
         public async Task<IActionResult> Details(long? id)
         {
             if (id == null || _context.CorporateSales == null)
@@ -275,6 +277,7 @@ namespace ADDPerformance.Controllers
         }
 
         // GET: CorporateSales/Edit/5
+            [HttpGet("{id}")]
         public async Task<IActionResult> Edit(long? id)
         {
             if (id == null || _context.CorporateSales == null)

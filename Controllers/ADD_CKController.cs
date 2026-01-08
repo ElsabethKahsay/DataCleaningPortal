@@ -44,6 +44,8 @@ namespace ADDPerformance.Controllers
 
         // 2. POST: api/ADD_CK/upload
 [HttpPost("upload")]
+[Consumes("multipart/form-data")]
+
 public async Task<IActionResult> ProcessAddCkCsv(IFormFile file, string fileType, IdentityUser loggedInUser)
 {
     ArgumentNullException.ThrowIfNull(loggedInUser);

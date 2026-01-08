@@ -46,13 +46,28 @@ if (app.Environment.IsDevelopment())
     });
 }
 app.MapGet("/", () => Results.Redirect("/swagger"));
+// Serve static files early
+// Serve static files and HTTPS first
 app.UseHttpsRedirection();
-app.UseCors("OpenCorsPolicy");
-app.UseStaticFiles(); // This might be serving your old "Welcome" page - check wwwroot!
+app.UseStaticFiles();
 
 app.UseRouting();
-app.UseAuthorization();
+
+// Serve Swagger in all environments and before auth so swagger.json is public
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ADDPerformance API v1");
+    c.RoutePrefix = "swagger";
+});
+
+// CORS
+app.UseCors("OpenCorsPolicy");
+
+// Authentication/Authorization for API endpoints only
 app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();

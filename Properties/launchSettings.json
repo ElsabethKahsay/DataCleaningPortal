@@ -12,7 +12,7 @@
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
-      "launchUrl": "ByTourCodes", // Add this line
+      "launchUrl": "ByTourCodes", 
       "applicationUrl": "https://localhost:7103;https://localhost:5210",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
@@ -27,4 +27,3 @@
       }
     }
   }
-}

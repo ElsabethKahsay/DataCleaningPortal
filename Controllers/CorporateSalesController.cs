@@ -160,21 +160,21 @@ namespace ADDPerformance.Controllers
                         }
                         _context.AddRange(mainList);
                         await _context.SaveChangesAsync();
-                        TempData["SuccessMessage"] = "File successfully imported.";
+                       // TempData["SuccessMessage"] = "File successfully imported.";
                         return RedirectToAction(nameof(Index));
                     }
                 }
                 else
                 {
-                    TempData["FailureAlertMessage"] = "Please choose a proper file format to import";
+                 //   TempData["FailureAlertMessage"] = "Please choose a proper file format to import";
                 }
             }
             else
             {
-                TempData["FailureAlertMessage"] = "Please choose a  file to import";
+              //  TempData["FailureAlertMessage"] = "Please choose a  file to import";
             }
 
-            return View(nameof(Index));
+            return Ok();
 
         }
 
@@ -193,15 +193,11 @@ namespace ADDPerformance.Controllers
                 return NotFound();
             }
 
-            return View(corporateSales);
+            return Ok(corporateSales);
         }
 
         // GET: CorporateSales/Create
-        public IActionResult Create()
-        {
-            return View();
-        }
-
+       
         // POST: CorporateSales/Create
         // To protect from overposting attacks, enable the specific properties you want to bind to.
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
@@ -226,8 +222,8 @@ namespace ADDPerformance.Controllers
 
                     if (_context.CorporateSales.Where(x => x.Date == newDate && x.CorpType == corporateSales.CorpType).Any())
                     {
-                        TempData["FailureAlertMessage"] = "Date already exists. Please try again.";
-                        return View(corporateSales);
+                        //TempData["FailureAlertMessage"] = "Date already exists. Please try again.";
+                        return Ok(corporateSales);
 
                     }
                     CorporateSales line = new()
@@ -258,8 +254,8 @@ namespace ADDPerformance.Controllers
                     corporateSales.Status = Status.Active;
                     _context.Add(corporateSales);
                     await _context.SaveChangesAsync();
-                    TempData["SuccessMessage"] = "Values edited succesfully.";
-                    return RedirectToAction(nameof(Index));
+                    //TempData["SuccessMessage"] = "Values edited succesfully.";
+                    return Ok(nameof(Index));
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -269,8 +265,8 @@ namespace ADDPerformance.Controllers
                     }
                     else
                     {
-                        TempData["FailureAlertMessage"] = "Something is wrong. Please try again.";
-                        return View();
+                    //    TempData["FailureAlertMessage"] = "Something is wrong. Please try again.";
+                        return Ok();
                     }
                 }
             }
@@ -291,7 +287,7 @@ namespace ADDPerformance.Controllers
             {
                 return NotFound();
             }
-            return View(corporateSales);
+            return Ok(corporateSales);
         }
 
         // POST: CorporateSales/Edit/5
@@ -360,17 +356,19 @@ namespace ADDPerformance.Controllers
                 }
                 else
                 {
-                    TempData["FailureAlertMessage"] = "Date already exists. Please try again.";
-                    return View(corporateSales);
+                    //TempData["FailureAlertMessage"] = "Date already exists. Please try again.";
+                    return Ok(corporateSales);
                 }
                 return RedirectToAction(nameof(Index));
             }
-            return View(corporateSales);
+            return Ok();
         }
 
         // GET: CorporateSales/Delete/5
-        public async Task<IActionResult> Delete(long? id)
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(long id)
         {
+          
             if (id == null || _context.CorporateSales == null)
             {
                 return NotFound();
@@ -383,7 +381,7 @@ namespace ADDPerformance.Controllers
                 return NotFound();
             }
 
-            return View(corporateSales);
+            return Ok(corporateSales);
         }
 
         // POST: CorporateSales/Delete/5

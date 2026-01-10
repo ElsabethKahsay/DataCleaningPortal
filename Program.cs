@@ -21,7 +21,7 @@ builder.Services.AddDbContext<DBContext>(options =>
    // options.Password.RequireDigit = false; // Easier for development
     //ptions.Password.RequiredLength = 6;
 //})
-.//AddEntityFrameworkStores<DBContext>();
+//AddEntityFrameworkStores<DBContext>();
 
 // 4. Controller & Swagger Support
 builder.Services.AddControllersWithViews(); // Support for MVC Views

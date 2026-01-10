@@ -8,7 +8,8 @@ using System.Security.Claims;
 namespace ADDPerformance.Controllers
 {
     [ApiController]
-    [Route("/ByTourCodes")]
+    [Route("api/[controller]")]
+    // This will make the URL: https://localhost:7103/api/ByTourCodes
     // Remove UserManager if it's commented out in Program.cs
     public class ByTourCodesController : ControllerBase
     {
@@ -50,22 +51,26 @@ namespace ADDPerformance.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
+            // FIX 1: Normalize Date to the 1st of the month for consistency
+            var normalizedDate = new DateTime(byTourCode.Date.Year, byTourCode.Date.Month, 1);
+
             // Business Logic: Prevent Duplicates
             bool exists = await _context.ByTourCode.AnyAsync(x =>
                 x.TourCode == byTourCode.TourCode &&
-                x.Date == byTourCode.Date &&
-                x.CORP_TYPE == byTourCode.CORP_TYPE);
+                x.Date == normalizedDate &&
+                x.CORP_TYPE == byTourCode.CORP_TYPE &&
+                x.Status == Status.Active); // Only check against active records
 
-            if (exists) return Conflict("Date already exists for this Tour Code.");
+            if (exists) return Conflict("A record already exists for this Tour Code in this month.");
 
-            // Process logic (Calculating percents, etc.)
+            // Set Audit and Logic
+            byTourCode.Date = normalizedDate;
             byTourCode.CreatedAt = DateTime.Now;
-            byTourCode.CreatedBy = User.Identity?.Name ?? "System";
+            byTourCode.CreatedBy = User.Identity?.Name ?? "API_System";
             byTourCode.Status = Status.Active;
 
-            // Calculate ATPercent
-            if (byTourCode.Target != 0)
-                byTourCode.ATPercent = Math.Round((byTourCode.MonthylyAmount - byTourCode.Target) / byTourCode.Target * 100, 2);
+            // FIX 2: Centralized Calculation
+            CalculateMetrics(byTourCode);
 
             _context.ByTourCode.Add(byTourCode);
             await _context.SaveChangesAsync();
@@ -73,19 +78,31 @@ namespace ADDPerformance.Controllers
             return CreatedAtAction(nameof(GetDetails), new { id = byTourCode.Id }, byTourCode);
         }
 
-        // 4. PUT: api/ByTourCodes/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> Edit(long id, ByTourCode byTourCode)
+        public async Task<IActionResult> Edit(long id, ByTourCode updatedData)
         {
-            if (id != byTourCode.Id) return BadRequest();
+            if (id != updatedData.Id) return BadRequest("ID mismatch");
 
-            _context.Entry(byTourCode).State = EntityState.Modified;
+            var existingRecord = await _context.ByTourCode.FindAsync(id);
+            if (existingRecord == null) return NotFound();
+
+            // FIX 3: Update only specific fields to protect CreatedAt/CreatedBy
+            existingRecord.TourCode = updatedData.TourCode;
+            existingRecord.MonthylyAmount = updatedData.MonthylyAmount;
+            existingRecord.Target = updatedData.Target;
+            existingRecord.CORP_TYPE = updatedData.CORP_TYPE;
+
+            // Normalize date if it was changed
+            existingRecord.Date = new DateTime(updatedData.Date.Year, updatedData.Date.Month, 1);
+
+            // Recalculate metrics on edit
+            CalculateMetrics(existingRecord);
+
+            existingRecord.UpdatedAt = DateTime.Now;
+            existingRecord.UpdatedBy = User.Identity?.Name ?? "API_System";
 
             try
             {
-                byTourCode.UpdatedAt = DateTime.Now;
-                byTourCode.UpdatedBy = User.Identity?.Name ?? "System";
-
                 await _context.SaveChangesAsync();
             }
             catch (DbUpdateConcurrencyException)
@@ -94,9 +111,21 @@ namespace ADDPerformance.Controllers
                 throw;
             }
 
-            return NoContent(); // Standard 204 response for successful updates
+            return NoContent();
         }
 
+        // FIX 4: Helper method to ensure calculations are identical in Create and Edit
+        private void CalculateMetrics(ByTourCode model)
+        {
+            if (model.Target != 0)
+            {
+                model.ATPercent = Math.Round((model.MonthylyAmount - model.Target) / model.Target * 100, 2);
+            }
+            else
+            {
+                model.ATPercent = 0;
+            }
+        }
         // 5. DELETE: api/ByTourCodes/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(long id)

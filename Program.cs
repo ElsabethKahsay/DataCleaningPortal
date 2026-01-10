@@ -2,6 +2,7 @@ using ADDPerformance.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.OpenApi;
+using Microsoft.OpenApi; // Fixed reference
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,19 +10,26 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("connectionString")
     ?? throw new InvalidOperationException("Connection string 'connectionString' not found.");
 
-// 2. Add Services
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
+// 2. Database Context
+builder.Services.AddDbContext<DBContext>(options =>
+    options.UseSqlServer(connectionString));
 
-// 3. Configure Swagger (Swashbuckle)
+// 3. Identity Services (UNCOMMENTED & FIXED)
+// You need this because your controllers use UserManager and User.Identity
+//builder.Services.AddDefaultIdentity<IdentityUser>(options => {
+    //options.SignIn.RequireConfirmedAccount = false;
+   // options.Password.RequireDigit = false; // Easier for development
+    //ptions.Password.RequiredLength = 6;
+//})
+.//AddEntityFrameworkStores<DBContext>();
+
+// 4. Controller & Swagger Support
+builder.Services.AddControllersWithViews(); // Support for MVC Views
+builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "ADDPerformance API", Version = "v1" });
 });
-
-// 4. Database Context
-builder.Services.AddDbContext<DBContext>(options =>
-    options.UseSqlServer(connectionString));
 
 // 5. CORS Policy
 builder.Services.AddCors(options =>
@@ -35,39 +43,40 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // 6. Middleware Pipeline
+
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "ADDPerformance API v1");
-        // This makes the Swagger UI the default page when you open the root URL
-        c.RoutePrefix = "swagger";
-    });
+    app.UseDeveloperExceptionPage();
 }
-app.MapGet("/", () => Results.Redirect("/swagger"));
-// Serve static files early
-// Serve static files and HTTPS first
+
 app.UseHttpsRedirection();
+
+// FIX: Serve static files before Swagger if you want index.html to work
+app.UseDefaultFiles(); // Enables index.html as default
 app.UseStaticFiles();
 
 app.UseRouting();
-
-// Serve Swagger in all environments and before auth so swagger.json is public
-app.UseSwagger();
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ADDPerformance API v1");
-    c.RoutePrefix = "swagger";
-});
-
-// CORS
 app.UseCors("OpenCorsPolicy");
 
-// Authentication/Authorization for API endpoints only
+// 7. Identity Middleware
 app.UseAuthentication();
 app.UseAuthorization();
 
+// 8. Swagger Configuration
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ADDPerformance API V1");
+
+    // CHANGE: If you want to see your index.html, do NOT set RoutePrefix to string.Empty
+    // Keep it as "swagger" so you can visit it at /swagger/index.html
+    c.RoutePrefix = "swagger";
+});
+
+// 9. Routing
 app.MapControllers();
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();

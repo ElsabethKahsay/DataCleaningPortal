@@ -133,7 +133,7 @@ namespace ADDPerformance.Controllers.Api
 
         // 6. POST: api/OnlineSales/upload
         [HttpPost("upload")]
-        [Authorize(Policy = "AdminOnly")]
+       // [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Upload(IFormFile file)
         {
             if (file == null || file.Length == 0) return BadRequest("No file uploaded");

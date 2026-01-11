@@ -2,147 +2,200 @@
 using Microsoft.EntityFrameworkCore;
 using ADDPerformance.Data;
 using ADDPerformance.Models;
-using Microsoft.AspNetCore.Identity;
-using System.Security.Claims;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
-namespace ADDPerformance.Controllers
+namespace ADDPerformance.Controllers.Api
 {
     [ApiController]
     [Route("api/[controller]")]
-    // This will make the URL: https://localhost:7103/api/ByTourCodes
-    // Remove UserManager if it's commented out in Program.cs
+    [Produces("application/json")]
     public class ByTourCodesController : ControllerBase
     {
         private readonly DBContext _context;
 
-        public ByTourCodesController(DBContext context) // Removed UserManager
+        public ByTourCodesController(DBContext context)
         {
-            _context = context;
+            _context = context ?? throw new ArgumentNullException(nameof(context));
         }
-   
 
-        // 1. GET: api/ByTourCodes
+        /// <summary>
+        /// Get all active ByTourCode records
+        /// </summary>
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<ByTourCode>>> GetByTourCodes()
+        [ProducesResponseType(typeof(IEnumerable<ByTourCode>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<IEnumerable<ByTourCode>>> GetAll()
         {
-            if (_context.ByTourCode == null) return NotFound("Data set is null.");
+            if (_context.ByTourCode == null)
+            {
+                return NotFound("ByTourCode dataset is not available.");
+            }
 
-            var list = await _context.ByTourCode
+            var records = await _context.ByTourCode
                 .Where(c => c.Status == Status.Active)
+                .OrderByDescending(c => c.Date)   // Most recent first is common pattern
                 .ToListAsync();
 
-            return Ok(list);
+            return Ok(records);
         }
 
-        // 2. GET: api/ByTourCodes/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<ByTourCode>> GetDetails(long id)
+        /// <summary>
+        /// Get a single ByTourCode by ID
+        /// </summary>
+        [HttpGet("{id:long}")]
+        [ProducesResponseType(typeof(ByTourCode), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ByTourCode>> GetById(long id)
         {
-            var byTourCode = await _context.ByTourCode.FindAsync(id);
+            var record = await _context.ByTourCode.FindAsync(id);
 
-            if (byTourCode == null) return NotFound();
-
-            return Ok(byTourCode);
+            return record == null
+                ? NotFound()
+                : Ok(record);
         }
 
-        // 3. POST: api/ByTourCodes
+        /// <summary>
+        /// Create a new ByTourCode record
+        /// </summary>
         [HttpPost]
-        public async Task<ActionResult<ByTourCode>> Create(ByTourCode byTourCode)
+        [ProducesResponseType(typeof(ByTourCode), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<ActionResult<ByTourCode>> Create([FromBody] ByTourCode createDto)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
 
-            // FIX 1: Normalize Date to the 1st of the month for consistency
-            var normalizedDate = new DateTime(byTourCode.Date.Year, byTourCode.Date.Month, 1);
+            // Normalize date to first day of month
+            var normalizedDate = new DateTime(createDto.Date.Year, createDto.Date.Month, 1);
 
-            // Business Logic: Prevent Duplicates
-            bool exists = await _context.ByTourCode.AnyAsync(x =>
-                x.TourCode == byTourCode.TourCode &&
-                x.Date == normalizedDate &&
-                x.CORP_TYPE == byTourCode.CORP_TYPE &&
-                x.Status == Status.Active); // Only check against active records
+            // Check for duplicate (same tour code + month + corp type + active)
+            bool duplicateExists = await _context.ByTourCode
+                .AnyAsync(x =>
+                    x.TourCode == createDto.TourCode &&
+                    x.Date == normalizedDate &&
+                    x.CORP_TYPE == createDto.CORP_TYPE &&
+                    x.Status == Status.Active);
 
-            if (exists) return Conflict("A record already exists for this Tour Code in this month.");
+            if (duplicateExists)
+            {
+                return Conflict(new
+                {
+                    message = "A record already exists for this Tour Code, month and CORP_TYPE."
+                });
+            }
 
-            // Set Audit and Logic
-            byTourCode.Date = normalizedDate;
-            byTourCode.CreatedAt = DateTime.Now;
-            byTourCode.CreatedBy = User.Identity?.Name ?? "API_System";
-            byTourCode.Status = Status.Active;
+            // Prepare new entity
+            var entity = new ByTourCode
+            {
+                TourCode = createDto.TourCode,
+                Date = normalizedDate,
+                MonthylyAmount = createDto.MonthylyAmount,
+                Target = createDto.Target,
+                CORP_TYPE = createDto.CORP_TYPE,
 
-            // FIX 2: Centralized Calculation
-            CalculateMetrics(byTourCode);
+                // Audit fields
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = User.Identity?.Name ?? "SYSTEM_API",
+                Status = Status.Active
+            };
 
-            _context.ByTourCode.Add(byTourCode);
+            CalculateMetrics(entity);
+
+            _context.ByTourCode.Add(entity);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetDetails), new { id = byTourCode.Id }, byTourCode);
+            return CreatedAtAction(nameof(GetById), new { id = entity.Id }, entity);
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Edit(long id, ByTourCode updatedData)
+        /// <summary>
+        /// Update an existing ByTourCode record
+        /// </summary>
+        [HttpPut("{id:long}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> Update(long id, [FromBody] ByTourCode updateDto)
         {
-            if (id != updatedData.Id) return BadRequest("ID mismatch");
+            if (id != updateDto.Id)
+            {
+                return BadRequest("ID in URL and body must match.");
+            }
 
-            var existingRecord = await _context.ByTourCode.FindAsync(id);
-            if (existingRecord == null) return NotFound();
+            var existing = await _context.ByTourCode.FindAsync(id);
+            if (existing == null)
+            {
+                return NotFound();
+            }
 
-            // FIX 3: Update only specific fields to protect CreatedAt/CreatedBy
-            existingRecord.TourCode = updatedData.TourCode;
-            existingRecord.MonthylyAmount = updatedData.MonthylyAmount;
-            existingRecord.Target = updatedData.Target;
-            existingRecord.CORP_TYPE = updatedData.CORP_TYPE;
+            // Only update allowed business fields
+            existing.TourCode = updateDto.TourCode;
+            existing.MonthylyAmount = updateDto.MonthylyAmount;
+            existing.Target = updateDto.Target;
+            existing.CORP_TYPE = updateDto.CORP_TYPE;
 
-            // Normalize date if it was changed
-            existingRecord.Date = new DateTime(updatedData.Date.Year, updatedData.Date.Month, 1);
+            // Always normalize date
+            existing.Date = new DateTime(updateDto.Date.Year, updateDto.Date.Month, 1);
 
-            // Recalculate metrics on edit
-            CalculateMetrics(existingRecord);
+            CalculateMetrics(existing);
 
-            existingRecord.UpdatedAt = DateTime.Now;
-            existingRecord.UpdatedBy = User.Identity?.Name ?? "API_System";
+            // Audit
+            existing.UpdatedAt = DateTime.UtcNow;
+            existing.UpdatedBy = User.Identity?.Name ?? "SYSTEM_API";
 
             try
             {
                 await _context.SaveChangesAsync();
+                return NoContent();
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!ByTourCodeExists(id)) return NotFound();
+                if (!await ByTourCodeExistsAsync(id))
+                    return NotFound();
+
                 throw;
             }
-
-            return NoContent();
         }
 
-        // FIX 4: Helper method to ensure calculations are identical in Create and Edit
-        private void CalculateMetrics(ByTourCode model)
-        {
-            if (model.Target != 0)
-            {
-                model.ATPercent = Math.Round((model.MonthylyAmount - model.Target) / model.Target * 100, 2);
-            }
-            else
-            {
-                model.ATPercent = 0;
-            }
-        }
-        // 5. DELETE: api/ByTourCodes/5
-        [HttpDelete("{id}")]
+        /// <summary>
+        /// Soft-delete a ByTourCode record
+        /// </summary>
+        [HttpDelete("{id:long}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Delete(long id)
         {
             var record = await _context.ByTourCode.FindAsync(id);
-            if (record == null) return NotFound();
+            if (record == null)
+            {
+                return NotFound();
+            }
 
-            // Soft delete as per your original logic
             record.Status = Status.Inactive;
-            record.UpdatedAt = DateTime.Now;
+            record.UpdatedAt = DateTime.UtcNow;
+            record.UpdatedBy = User.Identity?.Name ?? "SYSTEM_API";
 
-            _context.ByTourCode.Update(record);
             await _context.SaveChangesAsync();
 
             return NoContent();
         }
 
-        private bool ByTourCodeExists(long id) => (_context.ByTourCode?.Any(e => e.Id == id)).GetValueOrDefault();
+        // Helpers
+        private async Task<bool> ByTourCodeExistsAsync(long id)
+        {
+            return await _context.ByTourCode.AnyAsync(e => e.Id == id);
+        }
+
+        private static void CalculateMetrics(ByTourCode model)
+        {
+            model.ATPercent = model.Target != 0
+                ? Math.Round((model.MonthylyAmount - model.Target) / model.Target * 100, 2)
+                : 0;
+        }
     }
 }

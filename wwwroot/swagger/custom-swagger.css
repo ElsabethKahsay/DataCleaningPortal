@@ -1,0 +1,6 @@
+/* Keep this file small (<< 7000 rules). Only override or provide minimal styles needed. */
+/* Example: tweak Swagger UI colors and ensure layout basics; do NOT paste full swagger-ui.css here. */
+
+.swagger-ui .topbar { background-color: #1b1b1b; }
+.swagger-ui .topbar a { color: #fff; }
+/* Add only the minimal overrides you need. Avoid large imports. */

@@ -15,7 +15,7 @@ namespace ADDPerformance.Controllers.Api
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    //[Authorize]
     public class RevUsdController : ControllerBase
     {
         private readonly UserManager<IdentityUser> _userManager;

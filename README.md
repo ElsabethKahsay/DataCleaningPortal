@@ -51,6 +51,9 @@ Run Migrations:
 Run the application:
     dotnet run
 
+Running Tests
+    dotnet test
+
 Project Structure
 Plaintext
 
@@ -59,6 +62,59 @@ Models/           # Domain entities and Data Transfer Objects (DTOs)
 Data/             # DBContext and Seed data
 FileStore/        # Storage for CSV upload templates
 Views/            # Responsive Razor templates
+ 
+ API Documentation
+ 
+ The system provides a centralized API for data management across various financial modules.
+ 
+ ### Centralized File Processing
+ - **Home Controller** (`/api/Home`)
+   - `POST /api/Home/uploadFile`: Route uploads to specific services based on `FileTypeChoice`.
+     - `1`: ADD_CK
+     - (Other types implemented via direct controller endpoints)
+ 
+ ### Module-Specific Endpoints
+ 
+ #### 1. Revenue USD (`/api/RevUsd`)
+ - **Purpose**: Tracks revenue performance (CY vs LY).
+ - `GET /api/RevUsd`: List all active records.
+ - `POST /api/RevUsd/upload`: Bulk import via CSV with automated normalization and calculation.
+ - `POST/PUT/DELETE`: Standard CRUD operations for granular control.
+ 
+ #### 2. Online Sales (`/api/OnlineSales`)
+ - **Purpose**: Management of digital sales metrics.
+ - `GET /api/OnlineSales`: Retrieve performance data.
+ - `POST /api/OnlineSales/upload`: Bulk CSV processing with upsert logic.
+ 
+ #### 3. Corporate Sales (`/api/CorporateSales`)
+ - **Purpose**: Tracking sales performance across different corporate segments.
+ - `GET /api/CorporateSales`: List active corporate sales data.
+ - `POST /api/CorporateSales/upload`: CSV upload engine for bulk updates.
+ 
+ #### 4. ByTourCodes (`/api/ByTourCodes`)
+ - **Purpose**: Granular tracking by tour identifier and corporate type.
+ - `GET /api/ByTourCodes`: List performance by code.
+ - `POST /api/ByTourCodes`: Create new tracking entry.
+ - `PUT/DELETE`: Management of specific code records.
+ 
+ #### 5. Date Master (`/api/DateMasters`)
+ - **Purpose**: The system's "Source of Truth" for reporting periods.
+ - `GET /api/DateMasters`: Retrieve all reporting months/years.
+ - `POST /api/DateMasters`: Define a new reporting period.
+ 
+ #### 6. ADD_CK (`/api/AddCk`)
+ - **Purpose**: Comprehensive financial check-off tracking.
+ - `GET /api/AddCk`: List active check-off records.
+ - `POST /api/AddCk/upload`: Automated CSV importer.
+ 
+ ### CSV Format Guidelines
+ Most upload endpoints expect a CSV with the following columns:
+ `Date (e.g., JAN-2024), CYValue, LYValue, Target`
+ 
+ The system automatically:
+ - Normalizes dates to the 1st of the month.
+ - Calculates "Against Target" (AT%) and "Against Last Year" (ALY) metrics.
+ - Stamps records with the current user's identification for auditing.
 
 Security & Identity Architecture
 

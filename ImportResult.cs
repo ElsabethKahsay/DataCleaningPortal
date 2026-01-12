@@ -9,5 +9,6 @@ namespace ADDPerformance.Models
         public int Updated { get; set; }
         public int TotalProcessed { get; set; }
         public DateTime? Timestamp { get; set; }
+        public bool Success { get; set; }
     }
 }

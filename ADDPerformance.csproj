@@ -11,6 +11,14 @@
     <Content Remove="Views\**" />
     <EmbeddedResource Remove="Views\**" />
     <None Remove="Views\**" />
+    <Compile Remove="Tests\**" />
+    <Content Remove="Tests\**" />
+    <EmbeddedResource Remove="Tests\**" />
+    <None Remove="Tests\**" />
+    <Compile Remove="CheckingXunit\**" />
+    <Content Remove="CheckingXunit\**" />
+    <EmbeddedResource Remove="CheckingXunit\**" />
+    <None Remove="CheckingXunit\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -72,9 +80,11 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.0" />
+
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
     <PackageReference Include="Microsoft.OpenApi" Version="1.3.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
+
   </ItemGroup>
 
   <ItemGroup>
